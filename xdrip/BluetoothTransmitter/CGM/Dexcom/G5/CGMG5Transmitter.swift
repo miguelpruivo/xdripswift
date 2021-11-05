@@ -247,19 +247,21 @@ class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
                     G5ResetRequested = false
                     
                 } else {
-                    
-                    // if firmware version not known, then get it first
-                    guard let firmware = firmware else {
+
+                    // is it a firefly ?
+                    // if no treat it as a G5, with own calibration
+                    if !isFireFly() {
                         
-                        sendTransmitterVersionTxMessage()
+                        // send SensorTxMessage to transmitter
+                        getSensorData()
                         
                         return
+                        
                     }
- 
                     
-                    
-                    // send SensorTxMessage to transmitter
-                    getSensorData()
+                    // it a transmitter with transmitterid >= 8G
+                    // continue with the firefly message flow
+                    fireflyMessageFlow()
                     
                 }
                 
@@ -409,22 +411,14 @@ class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
                                     // request battery level now, next time request firmware
                                     requestFirmware = true
                                     
-                                    // transmitterversion was already recceived, let's see if we need to get the batterystatus
-                                    if Date() > Date(timeInterval: ConstantsDexcomG5.batteryReadPeriodInHours * 60 * 60, since: UserDefaults.standard.timeStampOfLastBatteryReading != nil ? UserDefaults.standard.timeStampOfLastBatteryReading! : Date(timeIntervalSince1970: 0)) {
-                                        trace("    last battery reading was long time ago, requesting now", log: log, category: ConstantsLog.categoryCGMG5, type: .info)
-                                        if let writeControlCharacteristic = writeControlCharacteristic {
-                                            _ = writeDataToPeripheral(data: BatteryStatusTxMessage().data, characteristicToWriteTo: writeControlCharacteristic, type: .withResponse)
-                                            
-                                            // UserDefaults.standard.timeStampOfLastBatteryReading value in userdefaults will be set implicitly because the cgmTransmitterDelegate is also storing the transmitterbatteryinfo, which updates the timeStampOfLastBatteryReading in the UserDefaults
-                                            
-                                        } else {
-                                            
-                                            trace("    writeControlCharacteristic is nil, can not send BatteryStatusTxMessage", log: log, category: ConstantsLog.categoryCGMG5, type: .error)
-                                            
-                                        }
-                                    } else {
+                                    // transmitterversion was already received, let's see if we need to get the batterystatus
+                                    // and if not, then disconnect
+                                    if !batteryStatusRequested() {
+                                        
                                         disconnect()
+                                        
                                     }
+                                    
                                 } else {
                                     
                                     // request firmware now, next time request battery level
@@ -485,10 +479,16 @@ class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
                             
                             processBatteryStatusRxMessage(value: value)
                             
+                            // if firefly continue with the firefly message flow
+                            if isFireFly() { fireflyMessageFlow() }
+                            
                         case .transmitterVersionRx:
                             
                             processTransmitterVersionRxMessage(value: value)
-                            
+
+                            // if firefly continue with the firefly message flow
+                            if isFireFly() { fireflyMessageFlow() }
+
                         case .keepAliveRx:
                             
                             // seems no processing is necessary, now the user should get a pairing requeset
@@ -511,6 +511,9 @@ class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
                         case .transmitterTimeRx:
                             
                             processTransmitterTimeRxMessage(value: value)
+                            
+                            // if firefly continue with the firefly message flow
+                            if isFireFly() { fireflyMessageFlow() }
                             
                         case .glucoseBackfillRx:
                             
@@ -687,6 +690,21 @@ class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
         }
     }
     
+    /// sends transmitterTimeTxMessage to transmitter
+    private func sendTransmitterTimeTxMessage() {
+        
+        if let receiveAuthenticationCharacteristic = receiveAuthenticationCharacteristic {
+            
+            _ = writeDataToPeripheral(data: DexcomTransmitterTimeTxMessage().data, characteristicToWriteTo: receiveAuthenticationCharacteristic, type: .withResponse)
+            
+        } else {
+            
+            trace("receiveAuthenticationCharacteristic is nil", log: log, category: ConstantsLog.categoryCGMG5, type: .error)
+            
+        }
+        
+    }
+
     /// sends AuthRequestTxMessage to transmitter
     private func sendAuthRequestTxMessage() {
         let authMessage = AuthRequestTxMessage()
@@ -711,6 +729,7 @@ class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
     }
     
     private func processResetRxMessage(value:Data) {
+        
         if let resetRxMessage = ResetRxMessage(data: value) {
 
             trace("in processResetRxMessage, considering reset successful = %{public}@", log: log, category: ConstantsLog.categoryCGMG5, type: .info, (resetRxMessage.status == 0).description)
@@ -718,14 +737,19 @@ class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
             cGMG5TransmitterDelegate?.reset(for: self, successful: resetRxMessage.status == 0 )
             
         } else {
+            
             trace("resetRxMessage is nil", log: log, category: ConstantsLog.categoryCGMG5, type: .error)
+            
         }
+        
     }
     
     /// process batteryStatusRxMessage
     private func processBatteryStatusRxMessage(value:Data) {
         
         if let batteryStatusRxMessage = BatteryStatusRxMessage(data: value) {
+
+            trace("in processBatteryStatusRxMessage, voltageA = %{public}@, voltageB = %{public}@, resist = %{public}@, runtime = %{public}@, temperature = %{public}@, status = %{public}@", log: log, category: ConstantsLog.categoryCGMG5, type: .info, batteryStatusRxMessage.voltageA.description, batteryStatusRxMessage.voltageB.description, batteryStatusRxMessage.resist.description, batteryStatusRxMessage.runtime.description, batteryStatusRxMessage.temperature.description, batteryStatusRxMessage.status.description)
 
             // cGMG5TransmitterDelegate for showing info on bluetoothviewcontroller and store in coredata
             cGMG5TransmitterDelegate?.received(transmitterBatteryInfo: TransmitterBatteryInfo.DexcomG5(voltageA: batteryStatusRxMessage.voltageA, voltageB: batteryStatusRxMessage.voltageB, resist: batteryStatusRxMessage.resist, runtime: batteryStatusRxMessage.runtime, temperature: batteryStatusRxMessage.temperature), cGMG5Transmitter: self)
@@ -825,6 +849,8 @@ class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
             // assign transmittertime
             transmitterStartDate = transmitterTimeRxMessage.transmitterStartDate
             
+            trace("in  processTransmitterTimeRxMessage, transmitterStartDate = %{public}@", log: log, category: ConstantsLog.categoryCGMG5, type: .info, transmitterStartDate!.toString(timeStyle: .long, dateStyle: .long))
+            
             if let transmitterStartDate = transmitterStartDate {
                 
                 // send to delegate
@@ -845,9 +871,9 @@ class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
         if let transmitterVersionRxMessage = TransmitterVersionRxMessage(data: value) {
             
             // assign transmitterVersion
-            firmware = transmitterVersionRxMessage.firmwareVersion.hexEncodedString()
+            firmware = transmitterVersionRxMessage.firmwareVersionFormatted()
             
-            trace("in  processTransmitterVersionRxMessage, received %{public}@", log: log, category: ConstantsLog.categoryCGMG5, type: .info, firmware!)
+            trace("in  processTransmitterVersionRxMessage, firmware = %{public}@", log: log, category: ConstantsLog.categoryCGMG5, type: .info, firmware!)
 
             // send to delegate
             cGMG5TransmitterDelegate?.received(firmware: firmware!, cGMG5Transmitter: self)
@@ -907,4 +933,74 @@ class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
         }
 
     }
+    
+    /// - checks if battery status needs to be requested to tranmsitter (depends on when it was last updated), and if yes requests it (ie sends message BatteryStatusTxMessage)
+    /// - returns:
+    ///     - true if batter status requested, otherwise false
+    private func batteryStatusRequested() -> Bool {
+        
+        if Date() > Date(timeInterval: ConstantsDexcomG5.batteryReadPeriodInHours * 60 * 60, since: UserDefaults.standard.timeStampOfLastBatteryReading != nil ? UserDefaults.standard.timeStampOfLastBatteryReading! : Date(timeIntervalSince1970: 0)) {
+            trace("    last battery reading was long time ago, requesting now", log: log, category: ConstantsLog.categoryCGMG5, type: .info)
+            if let writeControlCharacteristic = writeControlCharacteristic {
+                _ = writeDataToPeripheral(data: BatteryStatusTxMessage().data, characteristicToWriteTo: writeControlCharacteristic, type: .withResponse)
+
+                return true
+                
+            } else {
+                
+                trace("    writeControlCharacteristic is nil, can not send BatteryStatusTxMessage", log: log, category: ConstantsLog.categoryCGMG5, type: .error)
+                
+                return false
+                
+            }
+            
+        } else {
+            
+            return false
+            
+        }
+        
+    }
+    
+    /// verifies if it's a firefly based on transmitterId, if >= 8G then considered to be a Firefly
+    private func isFireFly() -> Bool {
+        
+        return transmitterId.uppercased().compare("8G") == .orderedDescending
+        
+    }
+    
+    /// - verifies what is the next message to send to the firefly (is it battery request, firmware request, etc...
+    /// - and sends that message
+    private func fireflyMessageFlow() {
+        
+        // first of all check that the transmitter is really a firefly, if not stop processing
+        if !isFireFly() { return }
+        
+        // treat it as a firefly, ie using the calibration on the sensor
+        guard firmware != nil else {
+            
+            sendTransmitterVersionTxMessage()
+            
+            return
+            
+        }
+        
+        // check if battery status update needed
+        if !batteryStatusRequested() {
+            
+            if transmitterStartDate != nil {
+                
+                let t = 1
+                
+            } else {
+                
+                // request transmitterStartDate
+                sendTransmitterTimeTxMessage()
+                
+            }
+            
+        }
+        
+    }
+    
 }
