@@ -80,18 +80,115 @@ extension DexcomTransmitterOpCode: CustomStringConvertible {
         switch self {
         case .authRequestRx:
             return "authRequestRx"
+        
         case .authChallengeRx:
             return "authChallengeRx"
+        
         case .sensorDataRx:
             return "sensorDataRx"
+        
         case .resetRx:
             return "resetRx"
+        
         case .batteryStatusRx:
             return "batteryStatusRx"
+        
         case .transmitterVersionRx:
             return "transmitterVersionRx"
-        default:
-            return self.rawValue.description
+        
+        case .authRequestTx:
+            return "authRequestTx"
+        
+        case .authChallengeTx:
+            return "authChallengeTx"
+        
+        case .keepAliveTx:
+            return "keepAliveTx"
+        
+        case .bondRequestTx:
+            return "bondRequestTx"
+        
+        case .pairRequestRx:
+            return "pairRequestRx"
+        
+        case .disconnectTx:
+            return "disconnectTx"
+        
+        case .setAdvertisementParametersRx:
+            return "setAdvertisementParametersRx"
+        
+        case .firmwareVersionTx:
+            return "firmwareVersionTx"
+        
+        case .firmwareVersionRx:
+            return "firmwareVersionRx"
+        
+        case .batteryStatusTx:
+            return "batteryStatusTx"
+        
+        case .transmitterTimeTx:
+            return "transmitterTimeTx"
+        
+        case .transmitterTimeRx:
+            return "transmitterTimeRx"
+        
+        case .sessionStartTx:
+            return "sessionStartTx"
+        
+        case .sessionStartRx:
+            return "sessionStartRx"
+        
+        case .sessionStopTx:
+            return "sessionStopTx"
+        
+        case .sessionStopRx:
+            return "sessionStopRx"
+        
+        case .sensorDataTx:
+            return "sensorDataTx"
+        
+        case .glucoseTx:
+            return "glucoseTx"
+        
+        case .glucoseRx:
+            return "glucoseRx"
+        
+        case .calibrationDataTx:
+            return "calibrationDataTx"
+        
+        case .calibrationDataRx:
+            return "calibrationDataRx"
+        
+        case .calibrateGlucoseTx:
+            return "calibrateGlucoseTx"
+        
+        case .calibrateGlucoseRx:
+            return "calibrateGlucoseRx"
+        
+        case .glucoseHistoryTx:
+            return "glucoseHistoryTx"
+        
+        case .resetTx:
+            return "resetTx"
+        
+        case .transmitterVersionTx:
+            return "transmitterVersionTx"
+        
+        case .glucoseG6Tx:
+            return "glucoseG6Tx"
+        
+        case .glucoseG6Rx:
+            return "glucoseG6Rx"
+        
+        case .glucoseBackfillTx:
+            return "glucoseBackfillTx"
+        
+        case .glucoseBackfillRx:
+            return "glucoseBackfillRx"
+        
+        case .keepAliveRx:
+            return "keepAliveRx"
+        
         }
     }
 }

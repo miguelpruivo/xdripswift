@@ -245,6 +245,9 @@ class BluetoothTransmitter: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     /// will write to characteristicToWriteTo
     /// - returns: true if writeValue was successfully called, doesn't necessarily mean data is successvully written to peripheral
     func writeDataToPeripheral(data:Data, characteristicToWriteTo:CBCharacteristic, type:CBCharacteristicWriteType)  -> Bool {
+        
+        debuglogging("in writeDataToPeripheral, data = " + data.hexEncodedString())
+        
         if let peripheral = peripheral, getConnectionStatus() == CBPeripheralState.connected {
             trace("in writeDataToPeripheral, for peripheral with name %{public}@, for characteristic %{public}@", log: log, category: ConstantsLog.categoryBlueToothTransmitter, type: .info, deviceName ?? "'unknown'", characteristicToWriteTo.uuid.description)
             peripheral.writeValue(data, for: characteristicToWriteTo, type: type)

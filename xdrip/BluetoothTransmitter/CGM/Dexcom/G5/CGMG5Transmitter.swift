@@ -138,8 +138,20 @@ class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
         // initalize transmitterStartDate
         self.transmitterStartDate = transmitterStartDate
         
+        if let transmitterStartDate = transmitterStartDate {
+            debuglogging("transmitterStartdate = " + transmitterStartDate.toString(timeStyle: .long, dateStyle: .long))
+        } else {
+            debuglogging("transmitterStartdate is nil")
+        }
+        
         // initialize firmware
         self.firmware = firmware
+
+        if let firmware = firmware {
+            debuglogging("firmware = " + firmware)
+        } else {
+            debuglogging("firmware is nil")
+        }
 
         // initialize - CBUUID_Receive_Authentication.rawValue and CBUUID_Write_Control.rawValue will probably not be used in the superclass
         super.init(addressAndName: newAddressAndName, CBUUID_Advertisement: CBUUID_Advertisement_G5, servicesCBUUIDs: [CBUUID(string: CBUUID_Service_G5)], CBUUID_ReceiveCharacteristic: CBUUID_Characteristic_UUID.CBUUID_Receive_Authentication.rawValue, CBUUID_WriteCharacteristic: CBUUID_Characteristic_UUID.CBUUID_Write_Control.rawValue, bluetoothTransmitterDelegate: bluetoothTransmitterDelegate)
@@ -238,7 +250,14 @@ class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
             
             switch characteristicValue {
                 
-            case .CBUUID_Write_Control:
+            case .CBUUID_Receive_Authentication:
+                //send AuthRequestTxMessage
+                debuglogging("calling sendAuthRequestTxMessage")
+                sendAuthRequestTxMessage()
+                
+                break
+
+            default:
                 if (G5ResetRequested) {
                     // send ResetTxMessage
                     sendG5Reset()
@@ -261,16 +280,13 @@ class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
                     
                     // it a transmitter with transmitterid >= 8G
                     // continue with the firefly message flow
+                    debuglogging("continue with fireflymessageflow - 1")
                     fireflyMessageFlow()
                     
                 }
                 
-            case .CBUUID_Receive_Authentication:
-                //send AuthRequestTxMessage
-                sendAuthRequestTxMessage()
-                
-            default:
                 break
+                
             }
         } else {
             trace("    characteristicValue is nil", log: log, category: ConstantsLog.categoryCGMG5, type: .error)
@@ -693,13 +709,13 @@ class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
     /// sends transmitterTimeTxMessage to transmitter
     private func sendTransmitterTimeTxMessage() {
         
-        if let receiveAuthenticationCharacteristic = receiveAuthenticationCharacteristic {
+        if let writeControlCharacteristic = writeControlCharacteristic {
             
-            _ = writeDataToPeripheral(data: DexcomTransmitterTimeTxMessage().data, characteristicToWriteTo: receiveAuthenticationCharacteristic, type: .withResponse)
+            _ = writeDataToPeripheral(data: DexcomTransmitterTimeTxMessage().data, characteristicToWriteTo: writeControlCharacteristic, type: .withResponse)
             
         } else {
             
-            trace("receiveAuthenticationCharacteristic is nil", log: log, category: ConstantsLog.categoryCGMG5, type: .error)
+            trace("writeControlCharacteristic is nil", log: log, category: ConstantsLog.categoryCGMG5, type: .error)
             
         }
         
@@ -965,6 +981,8 @@ class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
     /// verifies if it's a firefly based on transmitterId, if >= 8G then considered to be a Firefly
     private func isFireFly() -> Bool {
         
+        debuglogging("in isfirefly, isfirefly = " + (transmitterId.uppercased().compare("8G") == .orderedDescending).description)
+        
         return transmitterId.uppercased().compare("8G") == .orderedDescending
         
     }
@@ -979,6 +997,8 @@ class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
         // treat it as a firefly, ie using the calibration on the sensor
         guard firmware != nil else {
             
+            debuglogging("will send sendTransmitterVersionTxMessage")
+            
             sendTransmitterVersionTxMessage()
             
             return
@@ -990,9 +1010,13 @@ class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
             
             if transmitterStartDate != nil {
                 
+                debuglogging("ready to continue")
+                
                 let t = 1
                 
             } else {
+                
+                debuglogging("will send sendTransmitterTimeTxMessage")
                 
                 // request transmitterStartDate
                 sendTransmitterTimeTxMessage()
