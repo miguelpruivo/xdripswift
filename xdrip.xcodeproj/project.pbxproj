@@ -2540,7 +2540,6 @@
 				F8FDFEA6260DE1A70047597D /* CustomColoredDisclosureIndicator */,
 				F8AF11F624B1E6D700AE5BA2 /* Errors */,
 				F85FF38F25288860004E6FF1 /* HouseKeeping */,
-				F8F7B8EE259A84A300C47B04 /* KalmanFilter */,
 				F81F9FF722861E6D0028C70F /* KeyValueObserverTimeKeeper.swift */,
 				F821CF69229FC22D005C1E43 /* Network */,
 				F821CF8022A5C814005C1E43 /* RepeatingTimer.swift */,
@@ -2652,13 +2651,6 @@
 				F8F7B8EA259A7B1C00C47B04 /* SavitzkyGolaySmoothableArray.swift */,
 			);
 			path = SavitzkyGolayFilter;
-			sourceTree = "<group>";
-		};
-		F8F7B8EE259A84A300C47B04 /* KalmanFilter */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = KalmanFilter;
 			sourceTree = "<group>";
 		};
 		F8F971AD23A5914C00C3F17D /* BluetoothPeripheral */ = {
